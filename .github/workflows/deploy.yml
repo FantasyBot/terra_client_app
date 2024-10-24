@@ -1,0 +1,43 @@
+name: Deploy React App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.20.2"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the app
+        run: |
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env
+          npm run build
+
+      - uses: shinyinc/action-aws-cli@v1.2
+      - run: aws s3 sync dist s3://mycompany-name-client-app-bucket
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-central-1
+
+      - name: Invalidate CloudFront...
+        uses: chetan/invalidate-cloudfront-action@v2
+        env:
+          DISTRIBUTION: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          PATHS: "/"
+          AWS_REGION: "eu-central-1"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
